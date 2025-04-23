@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Certificate Templates</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="max-w-5xl mx-auto bg-white shadow-lg rounded-lg p-6">
+        <h2 class="text-xl font-bold mb-4">Uploaded Certificate Templates</h2>
+
+        <table class="w-full border-collapse border border-gray-300">
+            <thead class="bg-gray-200">
+                <tr>
+                    <th class="border p-2">Program</th>
+                    <th class="border p-2">Year</th>
+                    <th class="border p-2">Batch</th>
+                    <th class="border p-2">Course</th>
+                    <th class="border p-2">Template</th>
+                    <th class="border p-2">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="templateTableBody">
+                {% for template in templates %}
+                <tr class="border">
+                    <td class="border p-2">{{ template.program_name }}</td>
+                    <td class="border p-2">{{ template.year }}</td>
+                    <td class="border p-2">{{ template.batch_name }}</td>
+                    <td class="border p-2">{{ template.course_name }}</td>
+                    <td class="border p-2">
+                        <a href="{{ template.file_url }}" target="_blank" class="text-blue-500 hover:underline">Download</a>
+                    </td>
+                    <td class="border p-2 flex gap-2">
+                        <!-- Edit Button -->
+                        <a href="http://127.0.0.1:8000/admin/templates/certificatetemplate/{{ template.id }}/change/" 
+                            class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600">
+                            Edit
+                        </a>
+                        <!-- Delete Button -->
+                        <a href="http://127.0.0.1:8000/admin/templates/certificatetemplate/{{ template.id }}/delete/" 
+                            class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">
+                            Delete
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center p-4 text-gray-500">No templates available.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
+
+{% endblock %}

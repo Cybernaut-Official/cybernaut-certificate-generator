@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # Django Service
+  web:
+    image: cgenapp:latest # Replace with your actual image name or build context
+    container_name: django_app
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app  # Bind mount your local code to the container
+    ports:
+      - "8000:8000"  # Expose port 8000 for Django
+    depends_on:
+      - redis
+    environment:
+      - REDIS_URL=redis://redis:6379/0  # URL for Redis service
+
+  # Celery Worker Service
+  celery:
+    image: cgenapp:latest # Replace with your actual image name or build context
+    container_name: celery_worker
+    command: celery -A config worker --loglevel=info # Replace with your actual project name
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+    environment:
+      - REDIS_URL=redis://redis:6379/0  # URL for Redis service
+
+  # Redis Service
+  redis:
+    image: redis:latest
+    container_name: redis_server
+    ports:
+      - "6379:6379"  # Expose port 6379 for Redis
+

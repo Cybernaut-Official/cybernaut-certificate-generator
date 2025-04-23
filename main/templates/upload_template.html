@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+
+{% block content %}
+{% load static %}
+
+<div class="flex justify-center items-center min-h-screen bg-gray-100">
+    <div class="max-w-lg w-full bg-white p-6 rounded-lg shadow-lg">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-6 text-center">Upload Certificate Template</h2>
+
+        <!-- Year Selection -->
+        <label class="block font-medium text-gray-700 mb-1">Select Year:</label>
+        <select id="yearSelect" class="w-full border p-3 rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none" onchange="fetchPrograms(this.value)">
+            <option value="">-- Choose Year --</option>
+        </select>
+
+        <!-- Program Selection -->
+        <label class="block font-medium text-gray-700 mt-4 mb-1">Select Program:</label>
+        <select id="programSelect" class="w-full border p-3 rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none" onchange="fetchBatches(this.value)">
+            <option value="">-- Choose Program --</option>
+        </select>
+
+        <!-- Batch Selection -->
+        <label class="block font-medium text-gray-700 mt-4 mb-1">Select Batch:</label>
+        <select id="batchSelect" class="w-full border p-3 rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none" onchange="fetchCourses(this.value)">
+            <option value="">-- Choose Batch --</option>
+        </select>
+
+        <!-- Course Selection -->
+        <label class="block font-medium text-gray-700 mt-4 mb-1">Select Course:</label>
+        <select id="courseSelect" class="w-full border p-3 rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none">
+            <option value="">-- Choose Course --</option>
+        </select>
+
+        <!-- File Upload Form -->
+        <form id="uploadForm" enctype="multipart/form-data">
+            <label class="block font-medium text-gray-700 mt-4 mb-1">Choose Template File (.docx):</label>
+            <input type="file" id="fileInput" class="w-full border p-3 rounded-md bg-gray-50 focus:ring-2 focus:ring-blue-400 focus:outline-none" accept=".docx" required>
+
+            <!-- Upload Button -->
+            <button type="button" onclick="uploadTemplate()" class="w-full bg-blue-600 text-white font-semibold p-3 rounded-md mt-6 hover:bg-blue-700 transition">
+                Upload
+            </button>
+        </form>
+        
+        <!-- Status Message -->
+        <p id="statusMessage" class="text-center text-red-500 mt-4"></p>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', fetchUniqueYears);
+
+    function fetchUniqueYears() {
+        fetch('/api/programs/')
+            .then(response => response.json())
+            .then(data => {
+                let years = [...new Set(data.map(program => program.year))].sort();
+                let yearDropdown = document.getElementById('yearSelect');
+                yearDropdown.innerHTML = '<option value="">-- Choose Year --</option>';
+                years.forEach(year => {
+                    yearDropdown.innerHTML += `<option value="${year}">${year}</option>`;
+                });
+            });
+    }
+
+    function fetchPrograms(year) {
+        fetch(`/api/programs/?year=${year}`)
+            .then(response => response.json())
+            .then(data => {
+                let programDropdown = document.getElementById('programSelect');
+                programDropdown.innerHTML = '<option value="">-- Choose Program --</option>';
+                data.forEach(program => {
+                    programDropdown.innerHTML += `<option value="${program.id}">${program.name}</option>`;
+                });
+                document.getElementById('batchSelect').innerHTML = '<option value="">-- Choose Batch --</option>';
+                document.getElementById('courseSelect').innerHTML = '<option value="">-- Choose Course --</option>';
+            });
+    }
+
+    function fetchBatches(programId) {
+        if (!programId) {
+            document.getElementById('batchSelect').innerHTML = '<option value="">-- Choose Batch --</option>';
+            return;
+        }
+
+        fetch(`/api/batches/?program_id=${programId}`)
+            .then(response => response.json())
+            .then(data => {
+                let batchDropdown = document.getElementById('batchSelect');
+                batchDropdown.innerHTML = '<option value="">-- Choose Batch --</option>';
+                data.forEach(batch => {
+                    batchDropdown.innerHTML += `<option value="${batch.id}">${batch.month} ${batch.name}</option>`;
+                });
+                document.getElementById('courseSelect').innerHTML = '<option value="">-- Choose Course --</option>';
+            });
+    }
+
+    function fetchCourses(batchId) {
+        if (!batchId) {
+            document.getElementById('courseSelect').innerHTML = '<option value="">-- Choose Course --</option>';
+            return;
+        }
+
+        fetch(`/api/courses/?batch_id=${batchId}`)
+            .then(response => response.json())
+            .then(data => {
+                let courseDropdown = document.getElementById('courseSelect');
+                courseDropdown.innerHTML = '<option value="">-- Choose Course --</option>';
+                data.forEach(course => {
+                    courseDropdown.innerHTML += `<option value="${course.id}">${course.name}</option>`;
+                });
+            });
+    }
+
+    function uploadTemplate() {
+        let courseId = document.getElementById('courseSelect').value;
+        let fileInput = document.getElementById('fileInput').files[0];
+        let statusMessage = document.getElementById('statusMessage');
+
+        if (!courseId) {
+            statusMessage.textContent = "Please select a course before uploading.";
+            return;
+        }
+
+        if (!fileInput) {
+            statusMessage.textContent = "Please select a file.";
+            return;
+        }
+
+        let formData = new FormData();
+        formData.append("course", courseId);  // ✅ Correct key
+        formData.append("template_file", fileInput);
+
+
+        fetch('/api/templates/upload/', {
+            method: "POST",
+            body: formData,
+            headers: {
+                "X-CSRFToken": getCookie("csrftoken")  // Ensure CSRF token is included
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                statusMessage.textContent = "Template uploaded successfully!";
+                statusMessage.classList.remove("text-red-500");
+                statusMessage.classList.add("text-green-500");
+            } else {
+                statusMessage.textContent = data.error || "Upload failed. Please try again.";
+            }
+        })
+        .catch(error => {
+            statusMessage.textContent = "Error uploading file: " + error;
+        });
+    }
+
+    // Function to get CSRF Token for Django
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.startsWith(name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+
+{% endblock %}

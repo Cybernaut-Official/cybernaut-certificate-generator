@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+{% block title %}Student Data{% endblock %}
+{% block content %}
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Data</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs" defer></script>
+    <style>
+        .table-container {
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-xl font-semibold mb-4">Student Data</h2>
+
+        <!-- Program Dropdown -->
+        <label class="block mb-2">Select Program:</label>
+        <select id="program" class="w-full p-2 border rounded"></select>
+
+        <!-- Batch Dropdown -->
+        <label class="block mt-4 mb-2">Select Batch:</label>
+        <select id="batch" class="w-full p-2 border rounded"></select>
+
+        <!-- Course Dropdown -->
+        <label class="block mt-4 mb-2">Select Course:</label>
+        <select id="course" class="w-full p-2 border rounded"></select>
+
+        <!-- Student Table -->
+        <div class="table-container mt-6">
+            <table class="w-full border-collapse border border-gray-300">
+                <thead>
+                    <tr class="bg-gray-200">
+                        <th class="border p-2">Serial Number</th>
+                        <th class="border p-2">Unique ID</th>
+                        <th class="border p-2">Name</th>
+                        <th class="border p-2">Email</th>
+                        <th class="border p-2">Phone</th>
+                        <th class="border p-2">Marks</th>
+                        <th class="border p-2">Date</th>
+                        <th class="border p-2">Actions</th>
+                        <th class="border p-2">Certificate</th>
+                        <th class="border p-2">Download Certificate</th>
+                    </tr>
+                </thead>
+                <tbody id="student-list">
+                    <tr>
+                        <td colspan="9" class="text-center p-4">Select a course to load students</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", async () => {
+            const programSelect = document.getElementById("program");
+            const batchSelect = document.getElementById("batch");
+            const courseSelect = document.getElementById("course");
+            const studentList = document.getElementById("student-list");
+
+            const BASE_URL = "http://127.0.0.1:8000/api";
+
+            async function fetchData(endpoint, method = "GET", body = null) {
+                try {
+                    const response = await fetch(`${BASE_URL}${endpoint}`, {
+                        method,
+                        headers: {
+                            "X-CSRFToken": getCookie("csrftoken"),
+                            "Content-Type": "application/json",
+                        },
+                        body: body ? JSON.stringify(body) : null,
+                    });
+                    return await response.json();
+                } catch (error) {
+                    console.error("Error fetching data:", error);
+                    return [];
+                }
+            }
+
+            async function loadPrograms() {
+                const programs = await fetchData("/programs/");
+                programSelect.innerHTML = "<option value=''>-- Choose Program --</option>";
+                programs.forEach(prog => {
+                    programSelect.innerHTML += `<option value="${prog.id}">${prog.name} (${prog.year})</option>`;
+                });
+            }
+
+            programSelect.addEventListener("change", async () => {
+                batchSelect.innerHTML = "<option value=''>-- Choose Batch --</option>";
+                courseSelect.innerHTML = "<option value=''>-- Choose Course --</option>";
+                studentList.innerHTML = `<tr><td colspan="9" class="text-center p-4">Select a course to load students</td></tr>`;
+
+                if (!programSelect.value) return;
+
+                const batches = await fetchData(`/batches/?program_id=${programSelect.value}`);
+                if (batches.length === 0) {
+                    batchSelect.innerHTML += "<option disabled>No batches found</option>";
+                } else {
+                    batches.forEach(batch => {
+                        batchSelect.innerHTML += `<option value="${batch.id}">${batch.month} ${batch.name}</option>`;
+                    });
+                }
+            });
+
+            batchSelect.addEventListener("change", async () => {
+                courseSelect.innerHTML = "<option value=''>-- Choose Course --</option>";
+                studentList.innerHTML = `<tr><td colspan="9" class="text-center p-4">Select a course to load students</td></tr>`;
+
+                if (!batchSelect.value) return;
+
+                const courses = await fetchData(`/courses/?batch_id=${batchSelect.value}`);
+                if (courses.length === 0) {
+                    courseSelect.innerHTML += "<option disabled>No courses found</option>";
+                } else {
+                    courses.forEach(course => {
+                        courseSelect.innerHTML += `<option value="${course.id}">${course.name}</option>`;
+                    });
+                }
+            });
+
+            courseSelect.addEventListener("change", async () => {
+                studentList.innerHTML = `<tr><td colspan="9" class="text-center p-4">Loading students...</td></tr>`;
+
+                if (!programSelect.value || !batchSelect.value || !courseSelect.value) return;
+
+                const students = await fetchData(`/students/?program=${programSelect.value}&batch=${batchSelect.value}&course=${courseSelect.value}`);
+                studentList.innerHTML = "";
+
+                if (students.length === 0) {
+                    studentList.innerHTML = `<tr><td colspan="9" class="text-center p-4">No students found</td></tr>`;
+                    return;
+                }
+
+                students.forEach(student => {
+                    let certStatusHTML = "";
+                    if (student.certificate_status === "sent") {
+                        certStatusHTML = `
+                        <button class="bg-purple-500 text-white px-2 py-1 rounded generate-btn" data-id="${student.id}">
+                                ✅ Already Sent (Send Again)
+                            </button>
+                        <span id="cert-status-${student.id}" class="text-sm block mt-1 text-gray-500"></span>
+                        `;
+                    } else {
+                        certStatusHTML = `
+                            <button class="bg-purple-500 text-white px-2 py-1 rounded generate-btn" data-id="${student.id}">
+                                Send Now
+                            </button>
+                            <span id="cert-status-${student.id}" class="text-sm block mt-1 text-gray-500"></span>
+                        `;
+                    }
+
+                    let row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td class="border p-2">${student.serial_number}</td>
+                        <td class="border p-2">${student.unique_id}</td>
+                        <td class="border p-2">${student.name}</td>
+                        <td class="border p-2">${student.email}</td>
+                        <td class="border p-2">${student.phone_number}</td>
+                        <td class="border p-2">${student.final_mark}</td>
+                        <td class="border p-2">${student.date}</td>
+                        <td class="border p-2">
+                            <a href ="/admin/students/student/${student.id}/change/" target="_blank">
+                            <button class="bg-blue-500 text-white px-2 py-1 rounded edit-btn" data-id="${student.id}">Edit</button>
+                            </a>
+                        </td>
+                        <td class="border p-2">${certStatusHTML}</td>
+                        <td class="border p-2">
+                        
+                            <a href="${student.certificate_file}" target="_blank" class="ml-2 inline-block bg-green-500 text-white px-2 py-1 rounded">
+                            Download
+                        </a>
+                        </td>
+                    `;
+                    studentList.appendChild(row);
+                });
+
+                document.querySelectorAll(".generate-btn").forEach(button => {
+                    button.addEventListener("click", async (event) => {
+                        const studentId = event.target.dataset.id;
+                        await generateCertificate(studentId);
+                    });
+                });
+            });
+
+            async function generateCertificate(studentId) {
+                const statusElement = document.getElementById(`cert-status-${studentId}`);
+                statusElement.textContent = "Generating...";
+
+                try {
+                    const response = await fetchData(`/students/generate-certificate/${studentId}/`, "POST");
+                    if (response.result) {
+                        statusElement.textContent = "✅ Certificate Generated";
+                        statusElement.classList.add("text-green-500");
+                        const button = document.querySelector(`.generate-btn[data-id="${studentId}"]`);
+                        if (button) button.disabled = true;
+                    } else {
+                        statusElement.textContent = "❌ Failed";
+                        statusElement.classList.add("text-red-500");
+                    }
+                } catch (error) {
+                    console.error("Error generating certificate:", error);
+                    statusElement.textContent = "❌ Failed";
+                    statusElement.classList.add("text-red-500");
+                }
+            }
+
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== "") {
+                    const cookies = document.cookie.split(";");
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.startsWith(name + "=")) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+
+            loadPrograms();
+        });
+    </script>
+</body>
+</html>
+
+{% endblock %}

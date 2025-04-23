@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+
+{% block content %}
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Student Data</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <script src="https://unpkg.com/alpinejs" defer></script>
+</head>
+<body class="bg-gray-100 p-6">
+
+    <div class="max-w-lg mx-auto bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-xl font-semibold mb-4">Upload Student Data</h2>
+
+        <!-- Select Program -->
+        <label class="block mb-2">Select Program:</label>
+        <select id="program" class="w-full p-2 border rounded">
+            <option value="">-- Choose Program --</option>
+        </select>
+
+        <!-- Select Batch -->
+        <label class="block mt-4 mb-2">Select Batch:</label>
+        <select id="batch" class="w-full p-2 border rounded">
+            <option value="">-- Choose Batch --</option>
+        </select>
+
+        <!-- Select Course -->
+        <label class="block mt-4 mb-2">Select Course:</label>
+        <select id="course" class="w-full p-2 border rounded">
+            <option value="">-- Choose Course --</option>
+        </select>
+
+        <!-- Upload Excel File -->
+        <form id="upload-form" class="mt-6">
+            <input type="file" id="file" class="w-full p-2 border rounded">
+            <button type="submit" class="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+                Upload
+            </button>
+        </form>
+
+        <!-- Status Message -->
+        <div id="upload-status" class="mt-4 text-gray-600 font-semibold"></div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", async () => {
+            const programSelect = document.getElementById("program");
+            const batchSelect = document.getElementById("batch");
+            const courseSelect = document.getElementById("course");
+            const statusDiv = document.getElementById("upload-status");
+
+            // Load Programs
+            const loadPrograms = async () => {
+                try {
+                    const res = await fetch("/api/programs/");
+                    const data = await res.json();
+                    programSelect.innerHTML = "<option value=''>-- Choose Program --</option>";
+                    data.forEach(prog => {
+                        let option = new Option(`${prog.name} (${prog.year})`, prog.id);
+                        programSelect.appendChild(option);
+                    });
+                } catch (error) {
+                    console.error("Error fetching programs:", error);
+                    statusDiv.innerText = "Failed to load programs.";
+                    statusDiv.classList.add("text-red-600");
+                }
+            };
+
+            // Load Batches when a Program is selected
+            programSelect.addEventListener("change", async () => {
+                batchSelect.innerHTML = "<option value=''>-- Choose Batch --</option>";
+                courseSelect.innerHTML = "<option value=''>-- Choose Course --</option>";
+                if (!programSelect.value) return;
+
+                try {
+                    const res = await fetch(`/api/batches/?program_id=${programSelect.value}`);
+                    const data = await res.json();
+                    if (data.length === 0) {
+                        alert("No batches found for this program.");
+                        return;
+                    }
+                    data.forEach(batch => {
+                        let option = new Option(`${batch.month} ${batch.name}`, batch.id);
+                        batchSelect.appendChild(option);
+                    });
+                } catch (error) {
+                    console.error("Error fetching batches:", error);
+                }
+            });
+
+            // Load Courses when a Batch is selected
+            batchSelect.addEventListener("change", async () => {
+                courseSelect.innerHTML = "<option value=''>-- Choose Course --</option>";
+                if (!batchSelect.value) return;
+
+                try {
+                    const res = await fetch(`/api/courses/?batch_id=${batchSelect.value}`);
+                    const data = await res.json();
+                    if (data.length === 0) {
+                        alert("No courses found for this batch.");
+                        return;
+                    }
+                    data.forEach(course => {
+                        let option = new Option(course.name, course.id);
+                        courseSelect.appendChild(option);
+                    });
+                } catch (error) {
+                    console.error("Error fetching courses:", error);
+                }
+            });
+
+            // Handle File Upload
+            document.getElementById("upload-form").addEventListener("submit", async (e) => {
+                e.preventDefault();
+                statusDiv.innerText = ""; // Reset message
+                statusDiv.classList.remove("text-green-600", "text-red-600");
+
+                const fileInput = document.getElementById("file");
+                const courseId = courseSelect.value;
+
+                if (!fileInput.files.length || !courseId) {
+                    statusDiv.innerText = "Please select a course and upload a file.";
+                    statusDiv.classList.add("text-red-600");
+                    return;
+                }
+
+                let formData = new FormData();
+                formData.append("file", fileInput.files[0]);
+
+                try {
+                    const res = await fetch(`/api/students/upload/${courseId}/`, {
+                        method: "POST",
+                        body: formData
+                    });
+
+                    // Ensure valid JSON response
+                    const result = await res.json();
+
+                    if (res.ok) {
+                        statusDiv.innerText = result.success || "File uploaded successfully!";
+                        statusDiv.classList.add("text-green-600");
+                    } else {
+                        statusDiv.innerText = result.error || "An error occurred.";
+                        statusDiv.classList.add("text-red-600");
+                    }
+                } catch (error) {
+                    console.error("Error uploading file:", error);
+                    statusDiv.innerText = "Upload failed. Please try again.";
+                    statusDiv.classList.add("text-red-600");
+                }
+            });
+
+            // Load Programs on page load
+            loadPrograms();
+        });
+    </script>
+
+</body>
+</html>
+
+{% endblock %}
