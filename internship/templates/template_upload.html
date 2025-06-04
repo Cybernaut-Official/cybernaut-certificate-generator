@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="bg-gray-100 min-h-screen p-6 flex items-center justify-center">
+  <div class="max-w-xl w-full bg-white p-8 rounded shadow-lg">
+    <h2 class="text-3xl font-semibold mb-8 text-center">Upload Certificate Template</h2>
+
+    <!-- Internship Select -->
+    <label for="internship" class="block mb-2 font-medium text-gray-700">Select Internship:</label>
+    <select id="internship" class="w-full border border-gray-300 rounded px-3 py-2 mb-6">
+      <option value="">-- Choose Internship --</option>
+    </select>
+
+    <!-- Batch Select -->
+    <label for="batch" class="block mb-2 font-medium text-gray-700">Select Batch:</label>
+    <select id="batch" class="w-full border border-gray-300 rounded px-3 py-2 mb-6" disabled>
+      <option value="">-- Choose Batch --</option>
+    </select>
+
+    <!-- Role Select -->
+    <label for="role" class="block mb-2 font-medium text-gray-700">Select Role:</label>
+    <select id="role" class="w-full border border-gray-300 rounded px-3 py-2 mb-6" disabled>
+      <option value="">-- Choose Role --</option>
+    </select>
+
+    <!-- Upload Template Form -->
+    <form id="upload-form" class="mt-4" enctype="multipart/form-data" method="POST">
+      {% csrf_token %}
+      <label for="template_file" class="block mb-2 font-medium text-gray-700">Upload Template File (PDF/DOCX):</label>
+      <input
+        type="file"
+        id="template_file"
+        name="template_file"
+        accept=".pdf,.docx"
+        class="w-full border border-gray-300 rounded px-3 py-2 mb-6"
+        required
+      />
+
+      <button
+        type="submit"
+        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-3 rounded"
+      >
+        Upload Template
+      </button>
+    </form>
+
+    <!-- Status Message -->
+    <div id="status" class="mt-6 text-center font-semibold"></div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const internshipSelect = document.getElementById("internship");
+    const batchSelect = document.getElementById("batch");
+    const roleSelect = document.getElementById("role");
+    const statusDiv = document.getElementById("status");
+    const uploadForm = document.getElementById("upload-form");
+
+    // Load internships
+    async function loadInternships() {
+      const res = await fetch("/api/internships/");
+      const internships = await res.json();
+      internshipSelect.innerHTML = `<option value="">-- Choose Internship --</option>`;
+      internships.forEach(i => {
+        internshipSelect.innerHTML += `<option value="${i.id}">${i.name} (${i.year})</option>`;
+      });
+    }
+
+    // Load batches
+    internshipSelect.addEventListener("change", async () => {
+      const internshipId = internshipSelect.value;
+      batchSelect.innerHTML = `<option value="">-- Choose Batch --</option>`;
+      roleSelect.innerHTML = `<option value="">-- Choose Role --</option>`;
+      roleSelect.disabled = true;
+
+      if (!internshipId) {
+        batchSelect.disabled = true;
+        return;
+      }
+
+      const res = await fetch(`/api/batches/?internship_id=${internshipId}`);
+      const batches = await res.json();
+
+      batchSelect.disabled = false;
+      batches.forEach(b => {
+        batchSelect.innerHTML += `<option value="${b.id}">${b.month} ${b.name}</option>`;
+      });
+    });
+
+    // Load roles
+    batchSelect.addEventListener("change", async () => {
+      const batchId = batchSelect.value;
+      roleSelect.innerHTML = `<option value="">-- Choose Role --</option>`;
+
+      if (!batchId) {
+        roleSelect.disabled = true;
+        return;
+      }
+
+      const res = await fetch(`/api/roles/?batch_id=${batchId}`);
+      const roles = await res.json();
+
+      roleSelect.disabled = false;
+      roles.forEach(r => {
+        roleSelect.innerHTML += `<option value="${r.id}">${r.title}</option>`;
+      });
+    });
+
+    // Handle upload
+    uploadForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      statusDiv.textContent = "";
+      statusDiv.className = "mt-6 text-center font-semibold";
+
+      const roleId = roleSelect.value;
+      const fileInput = document.getElementById("template_file");
+
+      if (!roleId) {
+        statusDiv.textContent = "Please select a role before uploading.";
+        statusDiv.classList.add("text-red-600");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("template_file", fileInput.files[0]);
+
+      try {
+        const res = await fetch(`/api/template-upload/${roleId}/`, {
+          method: "POST",
+          headers: {
+            "X-CSRFToken": "{{ csrf_token }}",
+          },
+          body: formData,
+        });
+
+        const result = await res.json();
+
+        if (res.ok) {
+          statusDiv.textContent = result.message || "Template uploaded successfully!";
+          statusDiv.className = "mt-6 text-center text-green-600 font-semibold";
+          uploadForm.reset();
+          internshipSelect.value = "";
+          batchSelect.innerHTML = `<option value="">-- Choose Batch --</option>`;
+          batchSelect.disabled = true;
+          roleSelect.innerHTML = `<option value="">-- Choose Role --</option>`;
+          roleSelect.disabled = true;
+        } else {
+          statusDiv.textContent = result.error || "Failed to upload template.";
+          statusDiv.className = "mt-6 text-center text-red-600 font-semibold";
+        }
+      } catch (err) {
+        statusDiv.textContent = "An error occurred during upload.";
+        statusDiv.className = "mt-6 text-center text-red-600 font-semibold";
+      }
+    });
+
+    loadInternships();
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <title>Manage Certificate Templates</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen p-6">
+
+  <div class="max-w-7xl mx-auto bg-white shadow rounded-lg p-6">
+    <h1 class="text-3xl font-semibold mb-6 text-gray-900">Certificate Templates</h1>
+
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-100">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Internship</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Template File</th>
+          </tr>
+        </thead>
+        <tbody id="templates-tbody" class="bg-white divide-y divide-gray-200">
+          <tr>
+            <td colspan="5" class="text-center py-4 text-gray-500">Loading templates...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+ <script>
+  async function loadTemplates() {
+    try {
+      const response = await fetch('/api/interns/templates/');
+      if (!response.ok) throw new Error('Network response was not ok');
+
+      const jsonData = await response.json();
+
+      const tbody = document.getElementById('templates-tbody');
+      tbody.innerHTML = ''; // Clear loading text or previous rows
+
+      if (!jsonData.success || !jsonData.templates || jsonData.templates.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">No templates found.</td></tr>';
+        return;
+      }
+
+      jsonData.templates.forEach(template => {
+        const tr = document.createElement('tr');
+        tr.classList.add('hover:bg-gray-50');
+
+        tr.innerHTML = `
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${template.id}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${template.internship}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${template.batch}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${template.role}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600">
+            <a href="${template.file_url}" target="_blank" class="inline-block px-3 py-1 border border-blue-600 rounded hover:bg-blue-600 hover:text-white transition">View</a>
+          </td>
+        `;
+
+        tbody.appendChild(tr);
+      });
+
+    } catch (e) {
+      const tbody = document.getElementById('templates-tbody');
+      tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-red-500">Error loading templates: ${e.message}</td></tr>`;
+      console.error('Error loading templates:', e);
+    }
+  }
+
+  // Load templates on page load
+  window.addEventListener('DOMContentLoaded', loadTemplates);
+</script>

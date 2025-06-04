@@ -44,7 +44,8 @@ INSTALLED_APPS = [
     "students",
     "certificates",
     "emails",
-    'main'
+    'main',
+    'internship',
 ]
 
 
@@ -66,6 +67,7 @@ TEMPLATES = [
         "DIRS": [
                     os.path.join(BASE_DIR, "frontend"),  # ✅ Add frontend folder
                     os.path.join(BASE_DIR, "templates"),  # ✅ Default Django templates folder
+                    os.path.join(BASE_DIR, "internship", "templates"),  # ✅ Internship templates folder
                 ],
         'APP_DIRS': True,
         'OPTIONS': {

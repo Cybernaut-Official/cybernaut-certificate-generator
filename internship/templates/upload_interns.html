@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Upload Interns</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+  <script src="https://unpkg.com/alpinejs" defer></script>
+</head>
+<body class="bg-gray-100 p-6">
+
+  <div class="max-w-xl mx-auto bg-white p-6 rounded shadow">
+    <h2 class="text-2xl font-semibold mb-6">Upload Intern Data</h2>
+
+    <!-- Internship -->
+    <label class="block mb-1 text-gray-700">Select Internship:</label>
+    <select id="internship" class="w-full border p-2 rounded mb-4">
+      <option value="">-- Choose Internship --</option>
+    </select>
+
+    <!-- Batch -->
+    <label class="block mb-1 text-gray-700">Select Batch:</label>
+    <select id="batch" class="w-full border p-2 rounded mb-4">
+      <option value="">-- Choose Batch --</option>
+    </select>
+
+    <!-- Role -->
+    <label class="block mb-1 text-gray-700">Select Role:</label>
+    <select id="role" class="w-full border p-2 rounded mb-4">
+      <option value="">-- Choose Role --</option>
+    </select>
+
+    <!-- Upload Excel -->
+    <form id="upload-form" class="mt-4">
+      <label class="block mb-1 text-gray-700">Upload Excel File:</label>
+      <input type="file" id="file" class="w-full border p-2 rounded mb-4" accept=".xlsx, .xls" />
+      <button
+        type="submit"
+        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+      >
+        Upload Interns
+      </button>
+    </form>
+
+    <!-- Status -->
+    <div id="status" class="mt-4 font-medium"></div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const internshipSelect = document.getElementById("internship");
+      const batchSelect = document.getElementById("batch");
+      const roleSelect = document.getElementById("role");
+      const statusDiv = document.getElementById("status");
+
+      const loadInternships = async () => {
+        try {
+          const res = await fetch("/api/internships/");
+          const data = await res.json();
+          internshipSelect.innerHTML = "<option value=''>-- Choose Internship --</option>";
+          data.forEach(item => {
+            internshipSelect.innerHTML += `<option value="${item.id}">${item.name} (${item.year})</option>`;
+          });
+        } catch (err) {
+          statusDiv.textContent = "Failed to load internships.";
+          statusDiv.classList.add("text-red-600");
+        }
+      };
+
+      internshipSelect.addEventListener("change", async () => {
+        batchSelect.innerHTML = "<option value=''>-- Choose Batch --</option>";
+        roleSelect.innerHTML = "<option value=''>-- Choose Role --</option>";
+        if (!internshipSelect.value) return;
+
+        const res = await fetch(`/api/batches/?internship_id=${internshipSelect.value}`);
+        const data = await res.json();
+        data.forEach(batch => {
+          batchSelect.innerHTML += `<option value="${batch.id}">${batch.month} ${batch.name}</option>`;
+        });
+      });
+
+      batchSelect.addEventListener("change", async () => {
+        roleSelect.innerHTML = "<option value=''>-- Choose Role --</option>";
+        if (!batchSelect.value) return;
+
+        const res = await fetch(`/api/roles/?batch_id=${batchSelect.value}`);
+        const data = await res.json();
+        data.forEach(role => {
+          roleSelect.innerHTML += `<option value="${role.id}">${role.title}</option>`;
+        });
+      });
+
+      document.getElementById("upload-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        statusDiv.textContent = "";
+        statusDiv.className = "mt-4 font-medium";
+
+        const roleId = roleSelect.value;
+        const file = document.getElementById("file").files[0];
+        if (!roleId || !file) {
+          statusDiv.textContent = "Please select a role and choose a file.";
+          statusDiv.classList.add("text-red-600");
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+          const res = await fetch(`/api/interns/upload/${roleId}/`, {
+            method: "POST",
+            body: formData,
+          });
+          const result = await res.json();
+
+          if (res.ok) {
+            statusDiv.textContent = result.success || "Interns uploaded successfully!";
+            statusDiv.classList.add("text-green-600");
+          } else {
+            statusDiv.textContent = result.error || "Upload failed.";
+            statusDiv.classList.add("text-red-600");
+          }
+        } catch (err) {
+          console.error(err);
+          statusDiv.textContent = "An error occurred while uploading.";
+          statusDiv.classList.add("text-red-600");
+        }
+      });
+
+      loadInternships();
+    });
+  </script>
+</body>
+</html>
+{% endblock %}

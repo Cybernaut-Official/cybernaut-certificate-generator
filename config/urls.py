@@ -25,6 +25,7 @@ urlpatterns = [
     path('api/', include('templates.urls')),  # Add this line
     path('api/', include('students.urls')),
     path("", include("main.urls")),  # Connect frontend routes
+    path("api/", include("internship.urls")),  # Connect internship routes
 
 
 
