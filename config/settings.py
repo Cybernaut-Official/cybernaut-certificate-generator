@@ -32,6 +32,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    "jazzmin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -134,7 +135,7 @@ STATIC_URL = 'static/'
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'    
 
 
 # Celery Configuration
@@ -149,8 +150,57 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend' #new
 EMAIL_HOST = 'smtp.gmail.com' #new
 EMAIL_PORT = 587 #new
-EMAIL_HOST_USER = 'ab7710850@gmail.com'  #new
-EMAIL_HOST_PASSWORD = "gnlgpkjaablwrqlr" #new
 EMAIL_USE_TLS = True #new
 
+
+try:
+    import django
+    from yourapp.models import EmailCredentials
+    django.setup()  # Ensure the app registry is loaded
+
+    creds = EmailCredentials.objects.get(active=True)
+    EMAIL_HOST_USER = creds.email
+    EMAIL_HOST_PASSWORD = creds.password
+
+except Exception as e:
+    # Fallback/default or raise error
+    pass
+    # EMAIL_HOST_USER = 'ab7710850@gmail.com'  #new
+    # EMAIL_HOST_PASSWORD = "gnlgpkjaablwrqlr" #new
+
+
+
+
 # MEDIA_ROOT = BASE_DIR / 'media'
+
+
+
+JAZZMIN_SETTINGS = {
+    # title of the window (Will default to current_admin_site.site_title if absent or None)
+    "site_title": "CN Certificate Generator Admin",
+
+    # Title on the login screen (19 chars max) (defaults to current_admin_site.site_header if absent or None)
+    "site_header": "CN CGen",
+
+    # Title on the brand (19 chars max) (defaults to current_admin_site.site_header if absent or None)
+    "site_brand": "CN CGen",
+
+    # Welcome text on the login screen
+    "welcome_sign": "Welcome to the CN Certificate Generator",
+
+    # Copyright on the footer
+    "copyright": "Cybernaut Edu-Tech LLP, All rights reserved.",
+
+    ############
+    # Top Menu #
+    ############
+
+    # Links to put along the top menu
+    "topmenu_links": [
+
+        # Url that gets reversed (Permissions can be added)
+        {"name": "Home page",  "url": "/", "permissions": ["auth.view_user"]},
+    ],
+
+
+}

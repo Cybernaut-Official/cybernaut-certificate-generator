@@ -391,16 +391,26 @@ def generate_certificate(student_id):
                 student.certificate_file.save(pdf_filename, ContentFile(pdf_file.read()))
                 student.save()
 
-            # ✅ Send Certificate Email (Delayed to Prevent Deduplication)
-            send_certificate_email.apply_async(
-                args=[student.email, student.name, pdf_path],
-                countdown=3
+            # ✅ Send Certificate Email Asynchronously but wait for it
+            task = send_certificate_email.apply_async(
+                args=[student.email, student.name, pdf_path]
             )
 
-            # ✅ Cleanup DOCX File After Conversion (To Save Space)
+            try:
+                result = task.get(timeout=30)
+                if "error" in result:
+                    return {"error": f"Certificate generated but email failed: {result['error']}"}
+            except Exception as e:
+                return {"error": f"Certificate generated but email task failed: {str(e)}"}
+
+            # ✅ Cleanup
             os.remove(docx_path)
 
-            return {"success": True, "message": f"Certificate generated for {student.name}", "pdf_path": student.certificate_file.url}
+            return {
+                "success": True,
+                "message": f"✅ Certificate generated and sent to {student.email}",
+                "pdf_path": student.certificate_file.url
+            }
 
            
     finally:
